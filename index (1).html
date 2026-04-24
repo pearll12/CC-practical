@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StockFlow – Inventory Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f14; --surface: #161b25; --surface2: #1e2535;
+      --border: #2a3347; --accent: #00e5a0; --accent2: #0091ff;
+      --danger: #ff4d6d; --text: #e8edf5; --muted: #6b7a99;
+      --font-head: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; overflow-x: hidden; }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 22px 40px; border-bottom: 1px solid var(--border);
+      background: rgba(13,15,20,0.85); backdrop-filter: blur(12px);
+    }
+    .logo { font-family: var(--font-head); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
+    .logo span { color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 14px; }
+    .header-badge { background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.25); color: var(--accent); padding: 5px 14px; border-radius: 100px; font-size: 0.75rem; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; }
+    .sync-indicator { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+    .sync-dot.syncing { background: #ffa500; animation: pulse 0.8s infinite; }
+    .sync-dot.synced  { background: var(--accent); }
+    .sync-dot.error   { background: var(--danger); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 36px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+    .stat-card:hover { border-color: var(--accent); }
+    .stat-card::after { content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%); }
+    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+    .stat-value { font-family: var(--font-head); font-size: 2rem; font-weight: 700; color: var(--text); }
+    .stat-value.green { color: var(--accent); } .stat-value.blue { color: var(--accent2); } .stat-value.red { color: var(--danger); }
+    .section-title { font-family: var(--font-head); font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; margin-bottom: 36px; }
+    .form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: end; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    input, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 10px; font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,160,0.1); }
+    input::placeholder { color: var(--muted); }
+    select option { background: var(--surface); }
+    .btn { padding: 12px 24px; border-radius: 10px; font-family: var(--font-head); font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .btn-primary { background: var(--accent); color: #0d0f14; }
+    .btn-primary:hover { background: #00ffb3; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,160,0.3); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(255,77,109,0.3); padding: 7px 14px; font-size: 0.8rem; }
+    .btn-danger:hover { background: rgba(255,77,109,0.1); }
+    .btn-edit { background: transparent; color: var(--accent2); border: 1px solid rgba(0,145,255,0.3); padding: 7px 14px; font-size: 0.8rem; }
+    .btn-edit:hover { background: rgba(0,145,255,0.1); }
+    .toolbar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+    .search-wrap { flex: 1; position: relative; min-width: 200px; }
+    .search-wrap input { padding-left: 40px; }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1rem; }
+    .toolbar select { width: auto; flex-shrink: 0; }
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--surface2); border-bottom: 1px solid var(--border); }
+    th { font-family: var(--font-head); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); padding: 16px 20px; text-align: left; font-weight: 600; }
+    td { padding: 16px 20px; font-size: 0.88rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 0.15s; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .product-name { font-weight: 500; color: var(--text); }
+    .category-tag { background: rgba(0,145,255,0.1); color: var(--accent2); border: 1px solid rgba(0,145,255,0.2); padding: 3px 10px; border-radius: 100px; font-size: 0.72rem; font-weight: 500; }
+    .stock-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 100px; font-size: 0.78rem; font-weight: 500; }
+    .stock-ok  { background: rgba(0,229,160,0.1);  color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+    .stock-low { background: rgba(255,165,0,0.1);  color: #ffa500;       border: 1px solid rgba(255,165,0,0.2); }
+    .stock-out { background: rgba(255,77,109,0.1); color: var(--danger);  border: 1px solid rgba(255,77,109,0.2); }
+    .price { font-family: var(--font-head); font-weight: 600; color: var(--text); }
+    .actions { display: flex; gap: 8px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 0.9rem; }
+    .toast { position: fixed; bottom: 30px; right: 30px; background: var(--surface2); border: 1px solid var(--accent); color: var(--accent); padding: 14px 22px; border-radius: 12px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 8px 30px rgba(0,0,0,0.4); z-index: 999; transform: translateY(20px); opacity: 0; transition: all 0.3s ease; pointer-events: none; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error-toast { border-color: var(--danger); color: var(--danger); }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px; width: 460px; max-width: 95vw; }
+    .modal h3 { font-family: var(--font-head); font-size: 1.2rem; margin-bottom: 24px; color: var(--text); }
+    .modal .form-col { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    @media (max-width: 700px) {
+      header { padding: 16px 20px; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .stats-row .stat-card:last-child { grid-column: 1 / -1; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .form-grid .btn { grid-column: 1 / -1; }
+      th:nth-child(3), td:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Stock<span>Flow</span></div>
+  <div class="header-right">
+    <div class="sync-indicator">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Connecting…</span>
+    </div>
+    <div class="header-badge">☁ Cloud Business System</div>
+  </div>
+</header>
+
+<main>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total Products</div>
+      <div class="stat-value blue" id="stat-total">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Stock Value</div>
+      <div class="stat-value green" id="stat-value">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Low Stock Alerts</div>
+      <div class="stat-value red" id="stat-low">—</div>
+    </div>
+  </div>
+
+  <div class="section-title">Add Product</div>
+  <div class="form-card">
+    <div class="form-grid">
+      <div class="field">
+        <label>Product Name</label>
+        <input id="inp-name" type="text" placeholder="e.g. Wireless Mouse" />
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select id="inp-cat">
+          <option value="Electronics">Electronics</option>
+          <option value="Clothing">Clothing</option>
+          <option value="Food">Food</option>
+          <option value="Furniture">Furniture</option>
+          <option value="Stationery">Stationery</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Qty &amp; Price (₹)</label>
+        <div style="display:flex;gap:8px;">
+          <input id="inp-qty" type="number" placeholder="Qty" min="0" style="width:80px"/>
+          <input id="inp-price" type="number" placeholder="Price" min="0"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="add-btn" onclick="addProduct()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="section-title">Inventory</div>
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input id="search" type="text" placeholder="Search products…" oninput="renderTable()" />
+    </div>
+    <select id="filter-cat" onchange="renderTable()">
+      <option value="">All Categories</option>
+      <option>Electronics</option>
+      <option>Clothing</option>
+      <option>Food</option>
+      <option>Furniture</option>
+      <option>Stationery</option>
+      <option>Other</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Product</th><th>Category</th>
+          <th>Quantity</th><th>Price</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="product-table"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none;">
+      <div class="empty-icon">📦</div>
+      <p>No products found. Add your first product above!</p>
+    </div>
+  </div>
+</main>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>✏️ Edit Product</h3>
+    <div class="form-col">
+      <div class="field"><label>Product Name</label><input id="edit-name" type="text"/></div>
+      <div class="field"><label>Category</label>
+        <select id="edit-cat">
+          <option>Electronics</option><option>Clothing</option><option>Food</option>
+          <option>Furniture</option><option>Stationery</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantity</label><input id="edit-qty" type="number" min="0"/></div>
+      <div class="field"><label>Price (₹)</label><input id="edit-price" type="number" min="0"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp }   from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+  import { getAnalytics }    from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
+  import {
+    getFirestore, collection,
+    addDoc, doc, updateDoc, deleteDoc,
+    onSnapshot, serverTimestamp, query, orderBy
+  } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+  // ── Your Firebase project config ──────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCE9VvXweXmyWV6_F9nIan2XdkOfGOG6cQ",
+    authDomain:        "inven-cc.firebaseapp.com",
+    projectId:         "inven-cc",
+    storageBucket:     "inven-cc.firebasestorage.app",
+    messagingSenderId: "634097547762",
+    appId:             "1:634097547762:web:cb7f414025b42f2a33d36b",
+    measurementId:     "G-XNJ6WPMN91"
+  };
+
+  const app       = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db        = getFirestore(app);
+  const col       = collection(db, "products");
+
+  // ── Sync indicator ────────────────────────────────────────────────────────
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  const setSynced  = () => { dot.className='sync-dot synced';  label.textContent='Cloud Synced'; };
+  const setSyncing = () => { dot.className='sync-dot syncing'; label.textContent='Syncing…'; };
+  const setError   = () => { dot.className='sync-dot error';   label.textContent='Offline'; };
+
+  // ── Local cache ───────────────────────────────────────────────────────────
+  let products = [];
+  let editId   = null;
+
+  // ── Real-time listener ────────────────────────────────────────────────────
+  const q = query(col, orderBy("createdAt", "asc"));
+  onSnapshot(q,
+    (snapshot) => {
+      products = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+      renderTable();
+      renderStats();
+      setSynced();
+    },
+    (err) => {
+      console.error(err);
+      setError();
+      showToast('⚠️ Cloud connection lost', true);
+    }
+  );
+
+  // ── ADD ───────────────────────────────────────────────────────────────────
+  window.addProduct = async function () {
+    const name  = document.getElementById('inp-name').value.trim();
+    const cat   = document.getElementById('inp-cat').value;
+    const qty   = parseInt(document.getElementById('inp-qty').value);
+    const price = parseFloat(document.getElementById('inp-price').value);
+
+    if (!name)                  return showToast('⚠️ Product name is required', true);
+    if (isNaN(qty)  || qty  < 0) return showToast('⚠️ Enter a valid quantity', true);
+    if (isNaN(price)|| price < 0) return showToast('⚠️ Enter a valid price', true);
+
+    const btn = document.getElementById('add-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    setSyncing();
+
+    try {
+      await addDoc(col, { name, cat, qty, price, createdAt: serverTimestamp() });
+      document.getElementById('inp-name').value  = '';
+      document.getElementById('inp-qty').value   = '';
+      document.getElementById('inp-price').value = '';
+      showToast('✅ Product added to cloud!');
+    } catch (e) {
+      showToast('❌ Failed: ' + e.message, true);
+      setError();
+    } finally {
+      btn.disabled = false; btn.textContent = '+ Add';
+    }
+  };
+
+  // ── DELETE ────────────────────────────────────────────────────────────────
+  window.deleteProduct = async function (firestoreId) {
+    if (!confirm('Delete this product from cloud?')) return;
+    setSyncing();
+    try {
+      await deleteDoc(doc(db, "products", firestoreId));
+      showToast('🗑️ Deleted from cloud');
+    } catch (e) {
+      showToast('❌ Delete failed: ' + e.message, true);
+      setError();
+    }
+  };
+
+  // ── EDIT MODAL ────────────────────────────────────────────────────────────
+  window.openEdit = function (firestoreId) {
+    const p = products.find(x => x.firestoreId === firestoreId);
+    if (!p) return;
+    editId = firestoreId;
+    document.getElementById('edit-name').value  = p.name;
+    document.getElementById('edit-cat').value   = p.cat;
+    document.getElementById('edit-qty').value   = p.qty;
+    document.getElementById('edit-price').value = p.price;
+    document.getElementById('edit-modal').classList.add('open');
+  };
+
+  window.closeModal = function () {
+    document.getElementById('edit-modal').classList.remove('open');
+    editId = null;
+  };
+
+  window.saveEdit = async function () {
+    if (!editId) return;
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    setSyncing();
+    try {
+      await updateDoc(doc(db, "products", editId), {
+        name:  document.getElementById('edit-name').value.trim(),
+        cat:   document.getElementById('edit-cat').value,
+        qty:   parseInt(document.getElementById('edit-qty').value),
+        price: parseFloat(document.getElementById('edit-price').value)
+      });
+      closeModal();
+      showToast('✅ Updated in cloud!');
+    } catch (e) {
+      showToast('❌ Update failed: ' + e.message, true);
+      setError();
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Changes';
+    }
+  };
+
+  // ── RENDER TABLE ──────────────────────────────────────────────────────────
+  window.renderTable = function () {
+    const search   = document.getElementById('search').value.toLowerCase();
+    const cat      = document.getElementById('filter-cat').value;
+    const tbody    = document.getElementById('product-table');
+    const empty    = document.getElementById('empty-state');
+    const filtered = products.filter(p =>
+      p.name.toLowerCase().includes(search) && (cat === '' || p.cat === cat)
+    );
+    if (filtered.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = filtered.map((p, i) => {
+      const badge = p.qty === 0
+        ? `<span class="stock-badge stock-out">⛔ Out of Stock</span>`
+        : p.qty <= 5
+        ? `<span class="stock-badge stock-low">⚠️ Low Stock</span>`
+        : `<span class="stock-badge stock-ok">✓ In Stock</span>`;
+      return `<tr>
+        <td style="color:var(--muted);font-size:0.78rem">${i+1}</td>
+        <td><span class="product-name">${p.name}</span></td>
+        <td><span class="category-tag">${p.cat}</span></td>
+        <td><strong>${p.qty}</strong></td>
+        <td><span class="price">₹${Number(p.price).toLocaleString('en-IN')}</span></td>
+        <td>${badge}</td>
+        <td><div class="actions">
+          <button class="btn btn-edit"   onclick="openEdit('${p.firestoreId}')">Edit</button>
+          <button class="btn btn-danger" onclick="deleteProduct('${p.firestoreId}')">Delete</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  };
+
+  // ── RENDER STATS ──────────────────────────────────────────────────────────
+  window.renderStats = function () {
+    document.getElementById('stat-total').textContent = products.length;
+    const val = products.reduce((s, p) => s + Number(p.price) * Number(p.qty), 0);
+    document.getElementById('stat-value').textContent = '₹' + val.toLocaleString('en-IN');
+    document.getElementById('stat-low').textContent   = products.filter(p => p.qty <= 5).length;
+  };
+
+  // ── TOAST ──────────────────────────────────────────────────────────────────
+  window.showToast = function (msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast' + (isError ? ' error-toast' : '');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2800);
+  };
+
+  // Close modal on overlay click
+  document.getElementById('edit-modal').addEventListener('click', function (e) {
+    if (e.target === this) closeModal();
+  });
+</script>
+</body>
+</html>
